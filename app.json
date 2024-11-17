@@ -11,6 +11,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
+    "experiments": {
+      "newArchEnabled": true
+    },
     "ios": {
       "supportsTablet": true
     },
@@ -22,6 +25,10 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-build-properties",
+      "expo-router"
+    ]
   }
 }
