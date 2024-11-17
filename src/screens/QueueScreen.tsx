@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '../../firebaseConfig';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -9,8 +9,6 @@ export default function QueueScreen({ route, navigation }) {
   const [queueData, setQueueData] = useState([]);
 
   useEffect(() => {
-    console.log('Debug: Starting useEffect');
-    console.log('Debug: storeId ->', storeId);
 
     const q = query(
       collection(db, `stores/${storeId}/queueInformation`),
@@ -22,7 +20,6 @@ export default function QueueScreen({ route, navigation }) {
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
-        console.log('Snapshot received:', snapshot.docs);
         if (!snapshot.empty) {
           const data = snapshot.docs.map(doc => ({
             id: doc.id,
@@ -46,6 +43,19 @@ export default function QueueScreen({ route, navigation }) {
     };
   }, [storeId]);
 
+  // フォーマット関数
+  const formatDate = (timestamp) => {
+    if (!timestamp) return 'データなし';
+    const date = new Date(timestamp.seconds * 1000); // Firestore タイムスタンプを Date に変換
+    const options = {
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    };
+    return new Intl.DateTimeFormat('ja-JP', options).format(date);
+  };
+
   useLayoutEffect(() => {
     console.log('Debug: Setting navigation options');
     navigation.setOptions({
@@ -64,20 +74,23 @@ export default function QueueScreen({ route, navigation }) {
         data={queueData}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <View style={{ padding: 10, borderBottomWidth: 1, borderColor: '#ddd' }}>
-            <Text>
-              Queue Count: {item.queueCount !== undefined ? item.queueCount : 'データなし'}
-            </Text>
-            <Text>
-              Updated At:{' '}
-              {item.updateDate
-                ? new Date(item.updateDate.seconds * 1000).toLocaleString()
-                : 'データなし'}
-            </Text>
+          <View style={styles.card}>
+            <View style={styles.queueInfo}>
+              <Text style={styles.queueCount}>
+                {item.queueCount !== undefined ? item.queueCount : '0'}
+              </Text>
+              <Text style={styles.queueText}>人位待ち</Text>
+            </View>
+            <View style={styles.updateDateInfo}>
+              <Text style={styles.updateDateText}>最新更新時間</Text>
+              <Text style={styles.updateDate}>
+                {item.updateDate !== undefined ? formatDate(item.updateDate) : 'データなし'}
+              </Text>
+            </View>
           </View>
         )}
         ListEmptyComponent={() => (
-          <View style={{ padding: 20, alignItems: 'center' }}>
+          <View style={styles.emptyList}>
             <Text>データがありません。</Text>
           </View>
         )}
@@ -98,3 +111,55 @@ export default function QueueScreen({ route, navigation }) {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  card: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    margin: 10,
+    backgroundColor: '#f9f9f9',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  queueInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  queueCount: {
+    fontSize: 48,
+    fontWeight: 'bold',
+    color: '#007AFF',
+  },
+  queueText: {
+    fontSize: 18,
+    marginLeft: 8,
+    color: '#333',
+  },
+  waitTimeInfo: {
+    alignItems: 'flex-end',
+  },
+  waitTimeText: {
+    fontSize: 16,
+    color: '#666',
+  },
+  waitTime: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#007AFF',
+  },
+  emptyList: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  floatingButton: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    backgroundColor: '#007AFF',
+    borderRadius: 50,
+    padding: 15,
+  },
+});
