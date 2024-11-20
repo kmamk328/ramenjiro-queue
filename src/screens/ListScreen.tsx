@@ -52,7 +52,7 @@ export default function ListScreen({ navigation }) {
         renderItem={({ item }) => (
           <QueueItem
             store={item}
-            onPress={() => navigation.navigate('QueueScreen', { storeId: item.id })}
+            onPress={() => navigation.navigate('QueueScreen', { storeId: item.id, storeName: item.storeName })}
           />
         )}
         keyExtractor={(item) => item.id}
