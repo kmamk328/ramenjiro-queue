@@ -4,11 +4,15 @@ import { collection, query, orderBy, limit, startAfter, onSnapshot } from 'fireb
 import { db } from '../../firebaseConfig';
 import { MaterialIcons } from '@expo/vector-icons';
 
+
+import QueueInputModal from '../components/QueueInputModal';
+
 export default function QueueScreen({ route, navigation }) {
   const { storeId, storeName } = route.params; // storeName を受け取る
   const [queueData, setQueueData] = useState([]); // 全データを保持
   const [lastVisible, setLastVisible] = useState(null); // 最後のドキュメントを保存
   const [isLoading, setIsLoading] = useState(false); // ローディング状態を管理
+  const [isModalVisible, setIsModalVisible] = useState(false); // モーダルの表示状態
 
   const PAGE_SIZE = 5; // 1ページに取得するデータ件数
 
@@ -135,12 +139,21 @@ export default function QueueScreen({ route, navigation }) {
         formatDate={formatDate}
       />
 
+      {/* モーダル呼び出しボタン */}
       <TouchableOpacity
         style={styles.floatingButton}
-        onPress={() => navigation.navigate('QueueInputScreen', { storeId })}
+        onPress={() => setIsModalVisible(true)} // モーダルを表示
       >
         <MaterialIcons name="edit" size={24} color="white" />
       </TouchableOpacity>
+
+      {/* モーダルコンポーネント */}
+      <QueueInputModal
+        isVisible={isModalVisible}
+        onClose={() => setIsModalVisible(false)}
+        storeName={storeName}
+        storeId={storeId}
+      />
     </View>
   );
 }
