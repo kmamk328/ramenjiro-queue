@@ -90,7 +90,8 @@ export default function QueueScreen({ route, navigation }) {
         backgroundColor: '#FFFFFF',
       },
       headerTintColor: '#000',
-      headerTitle: '行列情報',
+      headerTitle: '👣行列情報👣',
+      headerBackTitle: '店舗情報',
       headerTitleAlign: 'center',
     });
   }, [navigation]);
@@ -104,7 +105,7 @@ export default function QueueScreen({ route, navigation }) {
   };
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={styles.container}>
       {/* 店舗名を表示 */}
       <View style={styles.storeNameContainer}>
         <Text style={styles.storeName}>{storeName}</Text>
@@ -161,19 +162,23 @@ export default function QueueScreen({ route, navigation }) {
 // スクロール可能なカスタムコンポーネント
 function ScrollComponent({ data, onLoadMore, isLoading, formatDate }) {
   return (
+    <View style={styles.containerScroll}>
+    <Text>過去の入力値</Text>
     <ScrollView
       onScrollEndDrag={onLoadMore} // スクロールの終端で追加データを取得
       style={{ marginBottom: 10 }}
     >
-      <Text>過去の入力値</Text>
+
       {data.map((item) => (
         <View key={item.id} style={styles.card}>
-          <Text style={styles.queueCountBody}>
-            {item.queueCount !== undefined ? item.queueCount : '0'} 人待ち
-          </Text>
-          <Text style={styles.updateDateBody}>
-            {item.updateDate ? formatDate(item.updateDate) : 'データなし'}
-          </Text>
+          <View style={styles.row}>
+            <Text style={styles.queueCountBody}>
+              {item.queueCount !== undefined ? item.queueCount : '0'} 人待ち
+            </Text>
+            <Text style={styles.updateDateBody}>
+              {item.updateDate ? formatDate(item.updateDate) : 'データなし'}
+            </Text>
+          </View>
         </View>
       ))}
       {isLoading && (
@@ -182,10 +187,20 @@ function ScrollComponent({ data, onLoadMore, isLoading, formatDate }) {
         </View>
       )}
     </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    // backgroundColor: '#ffffe0',
+    marginBottom: 1,
+  },
+  containerScroll: {
+    flex: 2,
+    // backgroundColor: '#ffffe0',
+  },
   latestCard: {
     padding: 20,
     margin: 10,
@@ -215,13 +230,22 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#007AFF',
   },
+  row: {
+    flexDirection: 'row', // 横並びに設定
+    alignItems: 'center', // 垂直方向の位置を揃える
+    justifyContent: 'space-between', // 子要素間のスペースを均等に
+    paddingVertical: 10, // 上下の余白
+    paddingHorizontal: 15, // 左右の余白
+    // borderBottomWidth: 1, // 下線を追加
+    // borderColor: '#ddd', // 下線の色
+  },
   queueCountHead: {
     fontSize: 48,
     fontWeight: 'bold',
     color: '#007AFF',
   },
   queueCountBody: {
-    fontSize: 10,
+    fontSize: 15,
     fontWeight: 'bold',
     color: '#007AFF',
   },

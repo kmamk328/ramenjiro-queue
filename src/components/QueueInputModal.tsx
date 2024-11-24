@@ -107,6 +107,8 @@ export default function QueueInputModal({ isVisible, onClose, storeName, storeId
         justifyContent: 'center',
     },
     modalContainer: {
+        maxHeight: '80%',
+        minHeight: '50%',
         margin: 20,
         backgroundColor: '#fff',
         borderRadius: 10,

@@ -1,8 +1,20 @@
 import React from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
 import { FontAwesome, MaterialIcons } from 'react-native-vector-icons';
+import useFavorites from '../hooks/useFavorites';
 
 export default function QueueItem({ store, onPress }) {
+
+  const { addFavorite, removeFavorite, isFavorite } = useFavorites();
+
+  const toggleFavorite = () => {
+    if (isFavorite(store.id)) {
+      removeFavorite(store.id);
+    } else {
+      addFavorite(store);
+    }
+  };
+
   return (
     <TouchableOpacity onPress={onPress} style={styles.card}>
       {/* 店舗画像 */}
@@ -36,9 +48,13 @@ export default function QueueItem({ store, onPress }) {
       </View>
 
       {/* お気に入りアイコン */}
-      <View style={styles.favoriteIcon}>
-        <FontAwesome name="heart" size={20} color="gray" />
-      </View>
+      <TouchableOpacity style={styles.favoriteIcon} onPress={toggleFavorite}>
+        <FontAwesome
+          name={isFavorite(store.id) ? 'heart' : 'heart-o'}
+          size={20}
+          color={isFavorite(store.id) ? 'red' : 'gray'}
+        />
+      </TouchableOpacity>
     </TouchableOpacity>
   );
 }

@@ -1,12 +1,24 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
-import { View, FlatList, Text, StyleSheet  } from 'react-native';
+import { View, FlatList, Text, StyleSheet, TouchableOpacity  } from 'react-native';
 import QueueItem from '../components/QueueItem';
 import storeData from '../utils/storeData';
 import { collection, onSnapshot, query, limit, startAfter, getDocs } from 'firebase/firestore';
 import { db } from '../../firebaseConfig';
 
+import useFavorites from '../hooks/useFavorites';
+import { FontAwesome } from '@expo/vector-icons';
+
+import SearchModal from '../components/SearchModal';
+
+
+// import AdBanner from '../components/AdBanner';
+
 export default function ListScreen({ navigation }) {
+  const [isSearchModalVisible, setIsSearchModalVisible] = useState(false);
+  const [searchText, setSearchText] = useState('');
+  const [isFavoritesView, setIsFavoritesView] = useState(false);
   const [stores, setStores] = useState([]);
+  const { favorites } = useFavorites();
   const [lastVisible, setLastVisible] = useState(null);
 
   useEffect(() => {
@@ -25,15 +37,31 @@ export default function ListScreen({ navigation }) {
             backgroundColor: '#FFFFFF',
         },
         headerTintColor: '#000',
-        headerTitle: '店舗情報',
+        headerTitle: '🍜店舗情報🍜',
         headerTitleAlign: 'center',
-        // headerRight: () => (
-        //     <TouchableOpacity onPress={onRefresh}>
-        //         <MaterialCommunityIcons name="reload" size={24} color="#000" />
-        //     </TouchableOpacity>
-        // ),
+        headerRight: () => (
+          <TouchableOpacity onPress={() => setIsSearchModalVisible(true)}>
+            <FontAwesome
+            name="search"
+            size={24}
+            color="gray"
+            style={{ marginRight: 15 }}
+          />
+          </TouchableOpacity>
+        ),
     });
 }, [navigation]);
+
+const handleSearch = (text) => {
+  setSearchText(text);
+  setIsFavoritesView(false); // 検索時はお気に入り表示をリセット
+};
+
+const displayedStores = isFavoritesView
+  ? favorites
+  : stores.filter((store) =>
+      store.storeName.includes(searchText) // 店舗名で検索
+    );
 
   const loadMore = async () => {
     if (lastVisible) {
@@ -64,6 +92,12 @@ export default function ListScreen({ navigation }) {
           </View>
         )}
       />
+      <SearchModal
+        isVisible={isSearchModalVisible}
+        onClose={() => setIsSearchModalVisible(false)}
+        onSearch={handleSearch}
+      />
+      {/* <AdBanner /> */}
     </View>
   );
 }
@@ -71,7 +105,7 @@ export default function ListScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffe0',
+    // backgroundColor: '#ffffe0',
   },
   emptyList: {
     padding: 20,
