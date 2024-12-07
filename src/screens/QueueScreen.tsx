@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useContext } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ScrollView } from 'react-native';
-import { collection, query, orderBy, limit, startAfter, onSnapshot } from 'firebase/firestore';
+import { collection, query, orderBy, limit, startAfter, onSnapshot, doc, getDocs, setDoc, deleteDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../firebaseConfig';
-import { MaterialIcons } from '@expo/vector-icons';
+import { FontAwesome, MaterialIcons } from '@expo/vector-icons';
+import { AuthContext } from '../../App';
 
 
 import QueueInputModal from '../components/QueueInputModal';
@@ -13,75 +14,82 @@ export default function QueueScreen({ route, navigation }) {
   const [lastVisible, setLastVisible] = useState(null); // 最後のドキュメントを保存
   const [isLoading, setIsLoading] = useState(false); // ローディング状態を管理
   const [isModalVisible, setIsModalVisible] = useState(false); // モーダルの表示状態
+  const userId = useContext(AuthContext); // 現在のユーザーIDを取得
+
 
   const PAGE_SIZE = 5; // 1ページに取得するデータ件数
 
   // 初期データ取得
-  const fetchInitialData = () => {
+  const fetchInitialData = async () => {
     const q = query(
       collection(db, `stores/${storeId}/queueInformation`),
       orderBy('updateDate', 'desc'),
-      limit(PAGE_SIZE + 1) // 最新1件 + スクロール分
+      limit(PAGE_SIZE + 1)
     );
 
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        if (!snapshot.empty) {
-          const data = snapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          }));
-          setQueueData(data);
-          setLastVisible(snapshot.docs[snapshot.docs.length - 1]); // 最後のドキュメントを保存
+    try {
+      const unsubscribe = onSnapshot(
+        q,
+        async (snapshot) => {
+          if (!snapshot.empty) {
+            const data = snapshot.docs.map((doc) => ({
+              id: doc.id,
+              ...doc.data(),
+            }));
+            const favoriteIds = await fetchFavorites();
+            setQueueData(mergeFavorites(data, favoriteIds));
+            setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
+          }
+        },
+        (error) => {
+          console.error('Firestore データの取得に失敗しました:', error);
         }
-      },
-      (error) => {
-        console.error('Error fetching Firestore data:', error);
-      }
-    );
-
-    return unsubscribe; // クリーンアップ用
+      );
+      return unsubscribe; // 必ず関数を返す
+    } catch (error) {
+      console.error('データ取得中にエラーが発生しました:', error);
+      return () => {}; // クリーンアップ用の空関数を返す
+    }
   };
 
   // 追加データの取得
-  const fetchMoreData = () => {
-    if (isLoading || !lastVisible) return; // ローディング中または最後のデータがない場合は何もしない
+  const fetchMoreData = async () => {
+    if (isLoading || !lastVisible) return;
 
     setIsLoading(true);
 
     const q = query(
       collection(db, `stores/${storeId}/queueInformation`),
       orderBy('updateDate', 'desc'),
-      startAfter(lastVisible), // 前回の最後のドキュメントからスタート
+      startAfter(lastVisible),
       limit(PAGE_SIZE)
     );
 
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        if (!snapshot.empty) {
-          const data = snapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          }));
-          setQueueData((prevData) => [...prevData, ...data]); // 既存データに追加
-          setLastVisible(snapshot.docs[snapshot.docs.length - 1]); // 最後のドキュメントを更新
-        }
-        setIsLoading(false); // ローディング終了
-      },
-      (error) => {
-        console.error('Error fetching more Firestore data:', error);
-        setIsLoading(false); // エラー時もローディング終了
+    try {
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        const data = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        const favoriteIds = await fetchFavorites();
+        setQueueData((prevData) => [...prevData, ...mergeFavorites(data, favoriteIds)]);
+        setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
       }
-    );
-
-    return unsubscribe; // クリーンアップ用
+    } catch (error) {
+      console.error('追加データの取得に失敗しました:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   useEffect(() => {
     const unsubscribe = fetchInitialData();
-    return () => unsubscribe();
+    return () => {
+      if (typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
+    };
   }, [storeId]);
 
   useLayoutEffect(() => {
@@ -103,6 +111,65 @@ export default function QueueScreen({ route, navigation }) {
     const options = { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' };
     return new Intl.DateTimeFormat('ja-JP', options).format(date);
   };
+
+  const handleFavorite = async (id) => {
+    const favoritesDocRef = doc(db, `users/${userId}/favorites`, id);
+    const queueDocRef = doc(db, `stores/${storeId}/queueInformation`, id);
+
+    try {
+      const item = queueData.find((data) => data.id === id);
+      const isCurrentlyFavorite = item?.isFavorite;
+      const currentFavoriteCount = item?.favoriteCount || 0;
+
+      if (isCurrentlyFavorite) {
+        // お気に入り解除
+        await deleteDoc(favoritesDocRef);
+        await updateDoc(queueDocRef, { favoriteCount: Math.max(currentFavoriteCount - 1, 0) });
+      } else {
+        // お気に入り追加
+        await setDoc(favoritesDocRef, { createdAt: serverTimestamp() });
+        await updateDoc(queueDocRef, { favoriteCount: currentFavoriteCount + 1 });
+      }
+
+      // Firestore から最新データを取得して更新
+      const updatedSnapshot = await getDocs(
+        query(collection(db, `stores/${storeId}/queueInformation`), orderBy('updateDate', 'desc'))
+      );
+      const updatedData = updatedSnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      const favoriteIds = await fetchFavorites();
+      setQueueData(mergeFavorites(updatedData, favoriteIds));
+    } catch (error) {
+      console.error('お気に入り状態の更新に失敗しました:', error);
+    }
+  };
+  // お気に入りデータを取得する
+  const fetchFavorites = async () => {
+    const favoritesCollectionRef = collection(db, `users/${userId}/favorites`);
+    const snapshot = await getDocs(favoritesCollectionRef);
+    return snapshot.docs.map((doc) => doc.id); // お気に入りの ID リストを返す
+  };
+
+  const mergeFavorites = (data, favoriteIds) => {
+    return data.map((item) => ({
+      ...item,
+      isFavorite: favoriteIds.includes(item.id),
+    }));
+  };
+
+  // データを取得した後に `queueData` にお気に入り情報を追加
+  useEffect(() => {
+    const loadFavorites = async () => {
+      const favoriteIds = await fetchFavorites();
+      setQueueData((prevQueueData) => mergeFavorites(prevQueueData, favoriteIds));
+    };
+
+    loadFavorites();
+  }, [queueData]);
+
+
 
   return (
     <View style={styles.container}>
@@ -127,17 +194,18 @@ export default function QueueScreen({ route, navigation }) {
         )}
         ListEmptyComponent={() => (
           <View style={styles.emptyList}>
-            <Text>データがありません。</Text>
+            <Text>データがありません</Text>
           </View>
         )}
       />
 
       {/* スクロール可能なコンポーネント: 2番目以降のデータを表示 */}
       <ScrollComponent
-        data={queueData.slice(1)} // 2番目以降のデータを表示
+        data={queueData.slice(1)}
         onLoadMore={fetchMoreData}
         isLoading={isLoading}
         formatDate={formatDate}
+        handleFavorite={handleFavorite}
       />
 
       {/* モーダル呼び出しボタン */}
@@ -160,7 +228,7 @@ export default function QueueScreen({ route, navigation }) {
 }
 
 // スクロール可能なカスタムコンポーネント
-function ScrollComponent({ data, onLoadMore, isLoading, formatDate }) {
+function ScrollComponent({ data, onLoadMore, isLoading, formatDate, handleFavorite }) {
   return (
     <View style={styles.containerScroll}>
     <Text>過去の入力値</Text>
@@ -172,12 +240,29 @@ function ScrollComponent({ data, onLoadMore, isLoading, formatDate }) {
       {data.map((item) => (
         <View key={item.id} style={styles.card}>
           <View style={styles.row}>
-            <Text style={styles.queueCountBody}>
-              {item.queueCount !== undefined ? item.queueCount : '0'} 人待ち
-            </Text>
-            <Text style={styles.updateDateBody}>
-              {item.updateDate ? formatDate(item.updateDate) : 'データなし'}
-            </Text>
+            {/* 左側: 人待ちの数 */}
+            <View style={{ flex: 1 }}>
+              <Text style={styles.queueCountBody}>
+                {item.queueCount !== undefined ? item.queueCount : '0'} 人待ち
+              </Text>
+              <Text style={styles.updateDateBody}>
+                {item.updateDate ? formatDate(item.updateDate) : 'データなし'}
+              </Text>
+            </View>
+
+            {/* 右側: 星アイコンとお気に入り数 */}
+            <View style={styles.favoriteContainer}>
+              <TouchableOpacity onPress={() => handleFavorite(item.id)}>
+                <FontAwesome
+                  name="star"
+                  size={20}
+                  color={item.isFavorite ? 'gold' : 'gray'}
+                />
+              </TouchableOpacity>
+              <Text style={styles.favoriteCount}>
+                {item.favoriteCount || 0}
+              </Text>
+            </View>
           </View>
         </View>
       ))}
@@ -277,5 +362,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#007AFF',
     borderRadius: 50,
     padding: 15,
+  },
+  favoriteContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  favoriteButton: {
+    marginRight: 8,
+  },
+  favoriteCount: {
+    fontSize: 16,
+    color: '#333',
   },
 });

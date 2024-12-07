@@ -13,7 +13,7 @@ import {
     Platform,
     Alert
 } from 'react-native';
-import { collection, addDoc, query, where, orderBy, limit, getDocs, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, query, where, orderBy, limit, getDocs, serverTimestamp, doc, setDoc, increment } from 'firebase/firestore';
 import { db } from '../../firebaseConfig';
 import { AuthContext } from '../../App';
 
@@ -53,14 +53,17 @@ export default function QueueInputModal({ isVisible, onClose, storeName, storeId
                 }
             }
 
-          // 更新可能な場合、新しいデータを追加
-            const newDocRef = await addDoc(queueCollectionRef, {
-                queueCount: parseInt(queueCount, 10),
-                updateDate: serverTimestamp(),
-                updateUser: userId || 'unknown',
-            });
+            // ユーザーのポイントを更新
+            const userDocRef = doc(db, 'users', userId);
+            await setDoc(
+                userDocRef,
+                { points: increment(10) }, // 10ポイント加算
+                { merge: true }
+            );
 
-            console.log('新しいデータが登録されました:', newDocRef.id);
+            // console.log('10ポイントが付与されました');
+
+            Alert.alert('成功', '行列情報を登録し、10ポイントが付与されました');
             onClose();
         } catch (error) {
             console.error('Firestore データの登録に失敗しました:', error);

@@ -9,11 +9,13 @@ import useFavorites from '../hooks/useFavorites';
 import { FontAwesome } from '@expo/vector-icons';
 
 import SearchModal from '../components/SearchModal';
+import SearchTypeModal from '../components/SearchTypeModal';
 
 
 // import AdBanner from '../components/AdBanner';
 
 export default function ListScreen({ navigation }) {
+  const [isSearchTypeModalVisible, setIsSearchTypeModalVisible] = useState(false);
   const [isSearchModalVisible, setIsSearchModalVisible] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [isFavoritesView, setIsFavoritesView] = useState(false);
@@ -39,18 +41,26 @@ export default function ListScreen({ navigation }) {
         headerTintColor: '#000',
         headerTitle: '🍜店舗情報🍜',
         headerTitleAlign: 'center',
-        headerRight: () => (
-          <TouchableOpacity onPress={() => setIsSearchModalVisible(true)}>
-            <FontAwesome
-            name="search"
-            size={24}
-            color="gray"
-            style={{ marginRight: 15 }}
-          />
-          </TouchableOpacity>
-        ),
+        // headerRight: () => (
+        //   <TouchableOpacity onPress={() => setIsSearchTypeModalVisible(true)}>
+        //     <FontAwesome
+        //     name="search"
+        //     size={24}
+        //     color="gray"
+        //     style={{ marginRight: 15 }}
+        //   />
+        //   </TouchableOpacity>
+        // ),
     });
 }, [navigation]);
+
+const handleSearchTypeSelect = (type) => {
+  if (type === 'text') {
+    setIsSearchModalVisible(true);
+  } else if (type === 'favorites') {
+    setIsFavoritesView(true);
+  }
+};
 
 const handleSearch = (text) => {
   setSearchText(text);
@@ -77,6 +87,7 @@ const displayedStores = isFavoritesView
     <View style={styles.container}>
       <FlatList
         data={storeData}
+        // data={displayedStores}
         renderItem={({ item }) => (
           <QueueItem
             store={item}
@@ -91,6 +102,11 @@ const displayedStores = isFavoritesView
             <Text>店舗情報なし</Text>
           </View>
         )}
+      />
+      <SearchTypeModal
+        isVisible={isSearchTypeModalVisible}
+        onClose={() => setIsSearchTypeModalVisible(false)}
+        onSelect={handleSearchTypeSelect}
       />
       <SearchModal
         isVisible={isSearchModalVisible}

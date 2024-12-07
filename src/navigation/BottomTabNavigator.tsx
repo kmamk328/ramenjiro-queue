@@ -10,6 +10,7 @@ import FAQScreen from '../screens/FAQScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import AppInfoScreen from '../screens/AppInfoScreen';
 import NoticeScreen from '../screens/NoticeScreen';
+import ProfileScreen from '../screens/ProfileScreen';
 
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
@@ -22,6 +23,7 @@ function InquireStackNavigator() {
       <Stack.Screen name="List Screen" component={ListScreen} />
       <Stack.Screen name="QueueInputScreen" component={QueueInputScreen} />
       <Stack.Screen name="QueueScreen" component={QueueScreen} />
+      <Stack.Screen name="ProfileScreen" component={ProfileScreen} />
 
     </Stack.Navigator>
   );
@@ -53,6 +55,17 @@ export default function BottomTabNavigator() {
           ),
         }}
       />
+      <Tab.Screen
+          name="プロフィール"
+          component={ProfileScreen}
+          options={{
+            headerShown: false,
+            tabBarIcon: ({ color, size }) => (
+              <Icon name="account-circle-outline" color={color} size={size} />
+            ),
+          }}
+        />
+
       <Tab.Screen
           name="メニュー"
           // component={LoginScreen}
